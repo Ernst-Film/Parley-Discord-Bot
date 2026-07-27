@@ -1,6 +1,6 @@
 import { convertPcmToWav } from '../voice/audio.js';
 import { getSTT, resolveSttModel } from '../adapters/stt/index.js';
-import { unlink } from 'node:fs/promises';
+import { stat, unlink } from 'node:fs/promises';
 
 // Transcribes each track through a small worker pool instead of one at a
 // time. Cloud STT (openai) tolerates much higher concurrency than the local
@@ -17,7 +17,7 @@ export async function transcribeTracks(tracks, cfg = {}, deps = {}) {
   // meeting. The provider default can be overridden via deps.stt in tests.
   const transcribe = getSTT(cfg, deps.env, deps.sttDeps);
   const model = resolveSttModel(cfg);
-  const stt = deps.stt || ((wav) => transcribe(wav, { model, language: cfg.language }));
+  const stt = deps.stt || ((wav) => transcribe(wav, { model, language: cfg.language, prompt: cfg.sttVocabulary }));
   const cleanup = deps.cleanup || (async (p) => { try { await unlink(p); } catch { /* ignore */ } });
   const concurrency = Math.max(1, deps.concurrency ?? (cfg.sttProvider === 'openai' ? 4 : 2));
 
@@ -36,11 +36,19 @@ export async function transcribeTracks(tracks, cfg = {}, deps = {}) {
         const clean = (text || '').trim();
         if (!clean) continue; // silent track — not a failure, just nothing said
         const lastEnd = words && words.length ? words[words.length - 1].end : 0;
+        let endMs = t.startMs + Math.round(lastEnd * 1000);
+        // Some backends (OpenAI gpt-4o-transcribe) return no word timestamps.
+        // Fall back to the track's real audio duration (s16le/16kHz mono =
+        // 32 bytes/ms) so talk-time stats don't collapse to zero.
+        if (!lastEnd) {
+          try { endMs = t.startMs + Math.round((await stat(t.pcmPath)).size / 32); }
+          catch { /* keep the zero-length estimate */ }
+        }
         results[i] = {
           userId: t.userId,
           displayName: t.displayName,
           startMs: t.startMs,
-          endMs: t.startMs + Math.round(lastEnd * 1000),
+          endMs,
           text: clean,
         };
       } catch (err) {

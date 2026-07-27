@@ -267,6 +267,10 @@ export default function Setup() {
   const [msg, setMsg] = useState('');
   const [msgErr, setMsgErr] = useState(false);
   const [modelDraft, setModelDraft] = useState('');
+  // Blur-committed drafts for the free-text AI-context fields (same pattern as
+  // the model input: saving on every keystroke would PATCH per character).
+  const [contextDraft, setContextDraft] = useState('');
+  const [vocabDraft, setVocabDraft] = useState('');
   const [models, setModels] = useState([]); // suggestions for current provider
   // "Draft" providers: when you pick a cloud provider that has no API key yet,
   // we stage the choice (reveal its key field) WITHOUT saving — saving would be
@@ -278,6 +282,8 @@ export default function Setup() {
   function reload() { if (guildId) api.config(guildId).then(setData).catch(() => setData(null)); }
   useEffect(() => { reload(); }, [guildId]);
   useEffect(() => { if (data?.config) setModelDraft(data.config.summarizerModel); }, [data?.config?.summarizerModel]);
+  useEffect(() => { if (data?.config) setContextDraft(data.config.summaryContext || ''); }, [data?.config?.summaryContext]);
+  useEffect(() => { if (data?.config) setVocabDraft(data.config.sttVocabulary || ''); }, [data?.config?.sttVocabulary]);
 
   // Fetch the live model list whenever the provider changes (incl. Ollama tags).
   const provider = data?.config?.summarizerProvider;
@@ -411,6 +417,25 @@ export default function Setup() {
             )}
           </Field>
           )}
+
+          {!sumDraft && (
+          <Field label="Meeting context"
+            hint="Base knowledge for the AI: team members, projects, jargon, tone. Appended to the summary and Q&A prompts. Leave empty for none.">
+            <textarea className="input resize-y" rows={5} maxLength={4000} value={contextDraft}
+              onChange={(e) => setContextDraft(e.target.value)}
+              onBlur={() => {
+                const v = contextDraft.trim();
+                if ((v || null) !== (c.summaryContext ?? null)) save({ summaryContext: v || null });
+              }}
+              placeholder={'e.g. We are a film production company. "Bosun" is our render-farm tool; Mo runs post-production…'} />
+            {data.basePrompt && (
+              <details className="mt-2">
+                <summary className="text-xs text-muted cursor-pointer select-none">View the fixed base prompt your context is appended to</summary>
+                <pre className="mt-2 text-xs text-muted whitespace-pre-wrap bg-surface-2 border border-border rounded-sm p-3">{data.basePrompt}</pre>
+              </details>
+            )}
+          </Field>
+          )}
         </Card>
 
         <Card title="Transcription" desc="How spoken audio becomes text.">
@@ -467,6 +492,17 @@ export default function Setup() {
               </select>
               <Chevron />
             </div>
+          </Field>
+
+          <Field label="Vocabulary & names"
+            hint="Short list of names and terms the transcriber should spell correctly (people, projects, acronyms). Max 500 characters — it biases recognition, it isn't prose instructions.">
+            <textarea className="input resize-y" rows={2} maxLength={500} value={vocabDraft}
+              onChange={(e) => setVocabDraft(e.target.value)}
+              onBlur={() => {
+                const v = vocabDraft.trim();
+                if ((v || null) !== (c.sttVocabulary ?? null)) save({ sttVocabulary: v || null });
+              }}
+              placeholder="e.g. Parley, Bosun, Andrej, Coolify, faster-whisper, STT" />
           </Field>
         </Card>
 

@@ -65,3 +65,14 @@ test('summarizer prompt includes the summary-language instruction', async () => 
   const prompt = sentBody.messages[0].content;
   assert.match(prompt, /Write the entire summary in German\./);
 });
+
+test('summarizer prompt carries the per-guild custom context when set', async () => {
+  let sentBody;
+  const fetchImpl = async (_url, opts) => {
+    sentBody = JSON.parse(opts.body);
+    return { ok: true, json: async () => ({ choices: [{ message: { content: '{"tldr":"x"}' } }] }) };
+  };
+  const s = new OpenAISummarizer('m', 'http://x', 'k', fetchImpl);
+  await s.summarize('t', { attendees: [], customContext: 'SKU means stock keeping unit.' });
+  assert.match(sentBody.messages[0].content, /Server-provided context[\s\S]*SKU means stock keeping unit\./);
+});

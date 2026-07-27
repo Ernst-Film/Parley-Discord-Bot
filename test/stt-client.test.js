@@ -20,6 +20,18 @@ test('transcribeFile returns parsed body on success', async () => {
   assert.equal(out.text, 'hi');
 });
 
+test('transcribeFile forwards initial_prompt to the sidecar only when set', async () => {
+  const bodies = [];
+  const fetchImpl = async (_url, init) => {
+    bodies.push(init.body);
+    return { ok: true, status: 200, json: async () => ({ text: '', words: [] }) };
+  };
+  await transcribeFile('/tmp/a.wav', { prompt: 'Parley, Bosun' }, { baseUrl: 'http://x', fetchImpl, readFile: fakeRead });
+  assert.equal(bodies[0].get('initial_prompt'), 'Parley, Bosun');
+  await transcribeFile('/tmp/a.wav', {}, { baseUrl: 'http://x', fetchImpl, readFile: fakeRead });
+  assert.equal(bodies[1].get('initial_prompt'), null);
+});
+
 test('transcribeFile retries once then succeeds', async () => {
   const fetchImpl = fakeFetch([new Error('boom'), { ok: true, status: 200, body: { text: 'ok', words: [] } }]);
   const out = await transcribeFile('/tmp/a.wav', {}, { baseUrl: 'http://x', fetchImpl, readFile: fakeRead, retries: 1, backoffMs: 0 });

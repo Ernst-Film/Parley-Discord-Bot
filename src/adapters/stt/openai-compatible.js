@@ -24,14 +24,27 @@ export function createOpenAICompatibleSTT({ baseUrl, apiKey, label = 'STT' }, de
     let lastErr;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
+        const model = opts.model || 'whisper-large-v3-turbo';
         const form = new FormData();
         form.append('file', new Blob([bytes]), basename(filePath));
-        form.append('model', opts.model || 'whisper-large-v3-turbo');
-        form.append('response_format', 'verbose_json');
-        form.append('timestamp_granularities[]', 'word');
+        form.append('model', model);
+        // OpenAI's gpt-4o transcribe models reject verbose_json (they only
+        // support `json`/`text`, and timestamp_granularities is whisper-only) —
+        // sending it 400s every request. They return plain { text }, so word
+        // timestamps are unavailable; transcribe.js falls back to the track's
+        // audio duration for endMs.
+        if (/^gpt-4o/.test(model)) {
+          form.append('response_format', 'json');
+        } else {
+          form.append('response_format', 'verbose_json');
+          form.append('timestamp_granularities[]', 'word');
+        }
         // Whisper auto-detects language when none is supplied; only pin it when
         // the user picked a specific ISO code (our 'auto' sentinel means detect).
         if (opts.language && opts.language !== 'auto') form.append('language', opts.language);
+        // Per-guild vocabulary hint (names/jargon) — the transcription prompt
+        // biases decoding toward these spellings.
+        if (opts.prompt) form.append('prompt', opts.prompt);
         const res = await fetchImpl(url, {
           method: 'POST',
           headers: { Authorization: `Bearer ${apiKey}` },

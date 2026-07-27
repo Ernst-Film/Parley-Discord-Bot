@@ -100,6 +100,23 @@ test('malformed auto_join_channel_ids JSON falls back to []', () => {
   assert.deepEqual(getGuildConfig(db, 'g').autoJoinChannelIds, []);
 });
 
+test('summaryContext and sttVocabulary default to null, round-trip, and clear', () => {
+  const db = openDb(':memory:');
+  assert.equal(getGuildConfig(db, 'g').summaryContext, null);
+  assert.equal(getGuildConfig(db, 'g').sttVocabulary, null);
+  setGuildConfig(db, 'g', { summaryContext: 'We build films.', sttVocabulary: 'Parley, Bosun' });
+  let c = getGuildConfig(db, 'g');
+  assert.equal(c.summaryContext, 'We build films.');
+  assert.equal(c.sttVocabulary, 'Parley, Bosun');
+  setGuildConfig(db, 'g', { language: 'de' }); // unrelated update keeps them
+  c = getGuildConfig(db, 'g');
+  assert.equal(c.summaryContext, 'We build films.');
+  setGuildConfig(db, 'g', { summaryContext: null, sttVocabulary: null });
+  c = getGuildConfig(db, 'g');
+  assert.equal(c.summaryContext, null);
+  assert.equal(c.sttVocabulary, null);
+});
+
 test('keepAudio defaults to false and round-trips both values', () => {
   const db = openDb(':memory:');
   assert.equal(getGuildConfig(db, 'g').keepAudio, false);

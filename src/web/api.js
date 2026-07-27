@@ -10,6 +10,7 @@ import { validateSetup, availableProviders } from '../commands/setup-logic.js';
 import { config as env } from '../config/env.js';
 import { askMeeting } from '../adapters/summarizer/ask.js';
 import { getSummarizer } from '../adapters/summarizer/index.js';
+import { SUMMARY_PROMPT } from '../adapters/summarizer/notes.js';
 import { buildTranscript, computeTalkTime } from '../pipeline/summarize.js';
 import { resolveSummaryLanguage } from '../adapters/summarizer/languages.js';
 import { MODEL_SUGGESTIONS, fetchOllamaModels } from '../adapters/summarizer/models.js';
@@ -254,6 +255,7 @@ export function apiRouter({ db, bot = null, client = null, sidecar = null }) {
       channelName: target.channel_name, date: target.started_at,
       attendees: db.listAttendees(targetId).map((a) => a.display_name),
       summaryLanguage: resolveSummaryLanguage(cfg),
+      customContext: cfg.summaryContext ?? null,
     };
     try {
       const notes = await getSummarizer(cfg).summarize(transcript, meta);
@@ -308,6 +310,9 @@ export function apiRouter({ db, bot = null, client = null, sidecar = null }) {
       voiceChannels,
       models: MODEL_SUGGESTIONS,
       secrets: secretStatus(env),
+      // The fixed summarizer instructions, so the dashboard's read-only base
+      // prompt viewer can never drift from the code.
+      basePrompt: SUMMARY_PROMPT,
     });
   });
 
@@ -460,10 +465,12 @@ export function apiRouter({ db, bot = null, client = null, sidecar = null }) {
     if (!question) return res.status(400).json({ error: 'question required' });
     const transcript = db.listUtterances(id).map((u) => `${u.display_name}: ${u.text}`).join('\n');
     try {
+      const cfg = getGuildConfig(db, meeting.guild_id);
       const answer = await askMeeting({
-        cfg: getGuildConfig(db, meeting.guild_id), env, question, transcript,
+        cfg, env, question, transcript,
         meta: { channelName: meeting.channel_name, date: meeting.started_at,
-          attendees: db.listAttendees(id).map((a) => a.display_name) },
+          attendees: db.listAttendees(id).map((a) => a.display_name),
+          customContext: cfg.summaryContext ?? null },
       });
       res.json({ answer });
     } catch (e) { res.status(502).json({ error: e.message }); }

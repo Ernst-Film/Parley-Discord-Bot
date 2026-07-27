@@ -35,6 +35,31 @@ test('transcribeTracks computes endMs from last word timestamp', async () => {
   assert.equal(utts[0].endMs, 1000 + 2000); // startMs + last word end (2.0s)
 });
 
+test('transcribeTracks falls back to audio duration for endMs when no word timestamps', async () => {
+  const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'parley-transcribe-'));
+  try {
+    // 6400 bytes of s16le/16kHz mono = 200 ms of audio.
+    const pcmPath = join(dir, 'u1_1000.pcm');
+    writeFileSync(pcmPath, Buffer.alloc(6400));
+    const tracks = [{ userId: 'u1', displayName: 'Alice', startMs: 1000, pcmPath }];
+    // gpt-4o-transcribe style response: text only, no words.
+    const deps = { convert: async (p, w) => w, stt: async () => ({ text: 'hallo zusammen', words: [] }), cleanup: () => {} };
+    const { utterances: utts } = await transcribeTracks(tracks, {}, deps);
+    assert.equal(utts[0].endMs, 1000 + 200);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('transcribeTracks keeps a zero-length estimate when the pcm is unreadable', async () => {
+  const tracks = [{ userId: 'u1', displayName: 'Alice', startMs: 500, pcmPath: '/nonexistent/x.pcm' }];
+  const deps = { convert: async (p, w) => w, stt: async () => ({ text: 'hi', words: [] }), cleanup: () => {} };
+  const { utterances: utts, failures } = await transcribeTracks(tracks, {}, deps);
+  assert.equal(failures.length, 0);
+  assert.equal(utts[0].endMs, 500);
+});
+
 test('transcribeTracks preserves original track order regardless of completion order', async () => {
   const tracks = [
     { userId: 'u1', displayName: 'Alice', startMs: 0, pcmPath: '/a.pcm' },
