@@ -36,12 +36,15 @@ export async function processMeeting(db, meetingId, opts) {
   // otherwise has usable transcript — only bail out when every track
   // failed and nothing came through.
   if (failures.length > 0) {
-    console.warn(`[orchestrator] ${failures.length} track(s) failed transcription for meeting ${meetingId}`);
+    console.warn(`[orchestrator] ${failures.length} track(s) failed transcription for meeting ${meetingId}:`);
+    for (const f of failures.slice(0, 3)) console.warn(`[orchestrator]   ${f.displayName}: ${f.error}`);
   }
   if (utterances.length === 0 && failures.length > 0) {
     db.setMeetingStatus(meetingId, 'transcription_failed');
     const err = new Error(`All ${failures.length} track(s) failed transcription`);
-    err.userMessage = `Transcription failed — the STT sidecar may be down or unreachable. (${err.message})`;
+    // Surface the real per-track error — "sidecar down" was misleading when the
+    // failure was e.g. a cloud API rejecting the request.
+    err.userMessage = `Transcription failed (${opts.cfg?.sttProvider || 'sidecar'}): ${failures[0].error}`;
     throw err;
   }
   for (const u of utterances) db.addUtterance({ meetingId, ...u });
@@ -62,6 +65,7 @@ export async function processMeeting(db, meetingId, opts) {
     date: meeting.started_at,
     attendees,
     summaryLanguage: resolveSummaryLanguage(opts.cfg),
+    customContext: opts.cfg.summaryContext ?? null,
   };
 
   let notes;

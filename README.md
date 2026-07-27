@@ -330,6 +330,8 @@ pm2 save
 
 > **Mixed-language meetings:** if you speak one language with words from another mixed in (e.g. German with English terms), pick that base language explicitly (e.g. `German`) instead of `auto` — auto-detect can flip per audio chunk and garble the transcript. `summary_language` controls the notes language independently.
 
+**Give the AI base knowledge of your environment** (dashboard-only, under **Settings**): **Meeting context** is free-form prose (team members, projects, jargon, tone) appended to the summary and Q&A prompts — the fixed base prompt that guarantees the structured-notes format stays intact and is viewable read-only next to the field. **Vocabulary & names** is a short list (max 500 chars) fed to whisper as its initial prompt so names, products, and acronyms are spelled correctly in transcripts; it works with both the local sidecar and the OpenAI transcription backend.
+
 ## 🧠 Supported summarizers
 
 - **gemini** *(default)* — Gemini 2.5 Flash, free tier available. Set `GEMINI_API_KEY`.

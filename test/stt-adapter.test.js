@@ -71,6 +71,36 @@ test('openai-compatible omits language when auto', async () => {
   assert.equal(calls[0].init.body.get('language'), null);
 });
 
+test('openai-compatible requests plain json for gpt-4o transcribe models', async () => {
+  const { fetchImpl, calls } = captureFetch([
+    { ok: true, status: 200, body: { text: 'hallo zusammen' } }, // gpt-4o returns text only
+    { ok: true, status: 200, body: { text: 'x', words: [] } },
+  ]);
+  const stt = createOpenAICompatibleSTT({ baseUrl: 'http://x/v1', apiKey: 'k' }, { fetchImpl, readFile: fakeRead });
+  const out = await stt('/tmp/a.wav', { model: 'gpt-4o-transcribe', language: 'de' });
+  assert.equal(out.text, 'hallo zusammen');
+  assert.deepEqual(out.words, []);
+  // verbose_json + word granularities are whisper-only; gpt-4o models 400 on them.
+  assert.equal(calls[0].init.body.get('response_format'), 'json');
+  assert.equal(calls[0].init.body.get('timestamp_granularities[]'), null);
+  // whisper-1 keeps the word-timestamp request.
+  await stt('/tmp/a.wav', { model: 'whisper-1' });
+  assert.equal(calls[1].init.body.get('response_format'), 'verbose_json');
+  assert.equal(calls[1].init.body.get('timestamp_granularities[]'), 'word');
+});
+
+test('openai-compatible sends the vocabulary prompt only when set', async () => {
+  const { fetchImpl, calls } = captureFetch([
+    { ok: true, status: 200, body: { text: 'x', words: [] } },
+    { ok: true, status: 200, body: { text: 'x', words: [] } },
+  ]);
+  const stt = createOpenAICompatibleSTT({ baseUrl: 'http://x/v1', apiKey: 'k' }, { fetchImpl, readFile: fakeRead });
+  await stt('/tmp/a.wav', { prompt: 'Parley, Bosun, Coolify' });
+  assert.equal(calls[0].init.body.get('prompt'), 'Parley, Bosun, Coolify');
+  await stt('/tmp/a.wav', {});
+  assert.equal(calls[1].init.body.get('prompt'), null);
+});
+
 test('openai-compatible strips trailing slash from baseUrl', async () => {
   const { fetchImpl, calls } = captureFetch([{ ok: true, status: 200, body: { text: 'x', words: [] } }]);
   const stt = createOpenAICompatibleSTT({ baseUrl: 'http://x/v1/', apiKey: 'k' }, { fetchImpl, readFile: fakeRead });

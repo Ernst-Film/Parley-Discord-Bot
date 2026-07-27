@@ -125,6 +125,32 @@ test('accepts keepAudio boolean', () => {
   assert.equal(validateSetup({ keepAudio: false }, env).patch.keepAudio, false);
 });
 
+// ── AI context free-text fields ──────────────────────────────────────────────
+
+test('accepts summaryContext, trims it, and clears on empty/null', () => {
+  assert.equal(validateSetup({ summaryContext: '  We make films.  ' }, env).patch.summaryContext, 'We make films.');
+  assert.equal(validateSetup({ summaryContext: '' }, env).patch.summaryContext, null);
+  assert.equal(validateSetup({ summaryContext: '   ' }, env).patch.summaryContext, null);
+  assert.equal(validateSetup({ summaryContext: null }, env).patch.summaryContext, null);
+});
+
+test('rejects an over-long summaryContext and non-string values', () => {
+  const long = validateSetup({ summaryContext: 'x'.repeat(4001) }, env);
+  assert.equal(long.ok, false);
+  assert.match(long.error, /max 4000/);
+  const bad = validateSetup({ summaryContext: 42 }, env);
+  assert.equal(bad.ok, false);
+  assert.match(bad.error, /string/i);
+});
+
+test('accepts sttVocabulary with a tighter 500-char cap', () => {
+  assert.equal(validateSetup({ sttVocabulary: 'Parley, Bosun' }, env).patch.sttVocabulary, 'Parley, Bosun');
+  assert.equal(validateSetup({ sttVocabulary: '' }, env).patch.sttVocabulary, null);
+  const long = validateSetup({ sttVocabulary: 'y'.repeat(501) }, env);
+  assert.equal(long.ok, false);
+  assert.match(long.error, /max 500/);
+});
+
 test('accepts openai STT with key and a valid model', () => {
   const r = validateSetup({ sttProvider: 'openai', sttModel: 'whisper-1' }, { ...env, openai: { apiKey: 'k' } });
   assert.equal(r.ok, true);

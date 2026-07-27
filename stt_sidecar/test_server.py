@@ -31,6 +31,51 @@ def test_transcribe_returns_text(monkeypatch):
     assert body["text"] == "hello world"
     assert body["words"][0]["word"] == "hello"
 
+
+class RecordingModel(FakeModel):
+    """FakeModel that records the kwargs the endpoint passes to transcribe()."""
+    def __init__(self):
+        self.kwargs = None
+    def transcribe(self, path, **kwargs):
+        self.kwargs = kwargs
+        return super().transcribe(path, **kwargs)
+
+
+def test_initial_prompt_reaches_the_sequential_model():
+    m = RecordingModel()
+    _state.update(model=m, model_name="small", batched=None)  # no feature_extractor → sequential path
+    client = TestClient(app)
+    r = client.post("/transcribe", files={"file": ("a.wav", make_silent_wav(), "audio/wav")},
+                    data={"initial_prompt": "Parley, Bosun, Coolify"})
+    assert r.status_code == 200
+    assert m.kwargs.get("initial_prompt") == "Parley, Bosun, Coolify"
+
+
+def test_missing_initial_prompt_passes_none():
+    m = RecordingModel()
+    _state.update(model=m, model_name="small", batched=None)
+    client = TestClient(app)
+    r = client.post("/transcribe", files={"file": ("a.wav", make_silent_wav(), "audio/wav")})
+    assert r.status_code == 200
+    assert m.kwargs.get("initial_prompt") is None
+
+
+def test_initial_prompt_reaches_the_batched_pipeline():
+    recorded = {}
+    class RecordingBatched:
+        def transcribe(self, path, **kwargs):
+            recorded.update(kwargs)
+            return FakeModel().transcribe(path)
+    _state.update(model=FakeModel(), model_name="small", batched=RecordingBatched())
+    try:
+        client = TestClient(app)
+        r = client.post("/transcribe", files={"file": ("a.wav", make_silent_wav(), "audio/wav")},
+                        data={"initial_prompt": "Parley, Bosun"})
+        assert r.status_code == 200
+        assert recorded.get("initial_prompt") == "Parley, Bosun"
+    finally:
+        _state["batched"] = None  # don't leak the fake into later tests
+
 def reset_state():
     _state.update(model=None, model_name=None, device=None, compute=None)
 

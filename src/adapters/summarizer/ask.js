@@ -1,7 +1,8 @@
 import { getSummarizer } from './index.js';
+import { customContextBlock } from './notes.js';
 
 export function buildAskPrompt(question, transcript, meta = {}) {
-  return `Answer the question using ONLY the meeting transcript below. If the transcript does not contain the answer, say so plainly. Be concise.
+  return `Answer the question using ONLY the meeting transcript below. If the transcript does not contain the answer, say so plainly. Be concise.${customContextBlock(meta.customContext)}
 
 Meeting: ${meta.channelName || ''} ${meta.date ? `on ${meta.date}` : ''}
 Attendees: ${(meta.attendees || []).join(', ')}

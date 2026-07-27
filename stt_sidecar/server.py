@@ -126,7 +126,12 @@ def health():
 # Plain `def` (audit B1): FastAPI runs sync endpoints in its threadpool, so the
 # event loop — and /health — stay responsive during long transcriptions.
 @app.post("/transcribe")
-def transcribe(file: UploadFile = File(...), model: str = Form("small"), language: str = Form("auto")):
+def transcribe(
+    file: UploadFile = File(...),
+    model: str = Form("small"),
+    language: str = Form("auto"),
+    initial_prompt: str | None = Form(None),
+):
     m = get_model(model)
     suffix = os.path.splitext(file.filename or "a.wav")[1] or ".wav"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -134,14 +139,19 @@ def transcribe(file: UploadFile = File(...), model: str = Form("small"), languag
         path = tmp.name
     try:
         lang = None if language == "auto" else language
+        # Vocabulary hint (names/jargon) biasing whisper's decoding. Supported by
+        # both transcribe paths in faster-whisper >=1.1 (unlike hotwords, whose
+        # batched-path support varies by version — don't switch to it).
+        prompt = initial_prompt or None
         # Prefer the batched pipeline (parallel VAD segments, 1.7-2.6x faster);
         # fall back to the plain model when batching is off/unavailable.
         batched = get_batched()
         if batched is not None:
             segments, info = batched.transcribe(
-                path, language=lang, word_timestamps=True, batch_size=_resolve_batch_size())
+                path, language=lang, word_timestamps=True, initial_prompt=prompt,
+                batch_size=_resolve_batch_size())
         else:
-            segments, info = m.transcribe(path, language=lang, word_timestamps=True)
+            segments, info = m.transcribe(path, language=lang, word_timestamps=True, initial_prompt=prompt)
         words, texts = [], []
         for seg in segments:
             texts.append(seg.text)

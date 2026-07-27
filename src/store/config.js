@@ -9,6 +9,8 @@ export const DEFAULTS = {
   autoJoin: true,
   autoJoinChannelIds: [],
   keepAudio: false,
+  summaryContext: null,
+  sttVocabulary: null,
   language: 'auto',
   summaryLanguage: 'en',
 };
@@ -24,6 +26,8 @@ const COLS = {
   autoJoin: 'auto_join',
   autoJoinChannelIds: 'auto_join_channel_ids',
   keepAudio: 'keep_audio',
+  summaryContext: 'summary_context',
+  sttVocabulary: 'stt_vocabulary',
   language: 'language',
   summaryLanguage: 'summary_language',
 };
@@ -50,6 +54,8 @@ function fromRow(row) {
     autoJoin: row.auto_join == null ? DEFAULTS.autoJoin : !!row.auto_join,
     autoJoinChannelIds: parseIdList(row.auto_join_channel_ids),
     keepAudio: row.keep_audio == null ? DEFAULTS.keepAudio : !!row.keep_audio,
+    summaryContext: row.summary_context ?? DEFAULTS.summaryContext,
+    sttVocabulary: row.stt_vocabulary ?? DEFAULTS.sttVocabulary,
     language: row.language ?? DEFAULTS.language,
     summaryLanguage: row.summary_language ?? DEFAULTS.summaryLanguage,
   };
@@ -68,8 +74,8 @@ export function setGuildConfig(db, guildId, patch) {
   const merged = { ...current, ...safePatch, guildId };
   db.sql.prepare(
     `INSERT OR REPLACE INTO guild_config
-       (guild_id, summarizer_provider, summarizer_model, stt_provider, stt_model, whisper_model, notes_channel_id, use_thread, auto_join, auto_join_channel_ids, keep_audio, language, summary_language)
-     VALUES (@guildId, @summarizerProvider, @summarizerModel, @sttProvider, @sttModel, @whisperModel, @notesChannelId, @useThread, @autoJoin, @autoJoinChannelIds, @keepAudio, @language, @summaryLanguage)`
+       (guild_id, summarizer_provider, summarizer_model, stt_provider, stt_model, whisper_model, notes_channel_id, use_thread, auto_join, auto_join_channel_ids, keep_audio, summary_context, stt_vocabulary, language, summary_language)
+     VALUES (@guildId, @summarizerProvider, @summarizerModel, @sttProvider, @sttModel, @whisperModel, @notesChannelId, @useThread, @autoJoin, @autoJoinChannelIds, @keepAudio, @summaryContext, @sttVocabulary, @language, @summaryLanguage)`
   ).run({
     guildId,
     summarizerProvider: merged.summarizerProvider,
@@ -82,6 +88,8 @@ export function setGuildConfig(db, guildId, patch) {
     autoJoin: merged.autoJoin ? 1 : 0,
     autoJoinChannelIds: JSON.stringify(merged.autoJoinChannelIds || []),
     keepAudio: merged.keepAudio ? 1 : 0,
+    summaryContext: merged.summaryContext,
+    sttVocabulary: merged.sttVocabulary,
     language: merged.language,
     summaryLanguage: merged.summaryLanguage,
   });

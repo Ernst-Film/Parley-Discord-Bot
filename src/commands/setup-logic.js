@@ -12,6 +12,15 @@ export function providerKeyPresent(provider, env) {
   return { ok: false, missing: null };
 }
 
+// Free-text setting: trim, cap length, and treat empty as "clear back to null".
+function freeText(value, label, max) {
+  if (value === null) return { value: null };
+  if (typeof value !== 'string') return { error: `${label} must be a string.` };
+  const trimmed = value.trim();
+  if (trimmed.length > max) return { error: `${label} is too long (max ${max} characters).` };
+  return { value: trimmed || null };
+}
+
 export function validateSetup(input, env) {
   const patch = {};
 
@@ -61,6 +70,20 @@ export function validateSetup(input, env) {
   if (input.useThread !== undefined) patch.useThread = !!input.useThread;
   if (input.autoJoin !== undefined) patch.autoJoin = !!input.autoJoin;
   if (input.keepAudio !== undefined) patch.keepAudio = !!input.keepAudio;
+
+  // Per-guild AI context (dashboard-only): prose appended to the summary/Q&A
+  // prompts, and a short vocabulary list fed to whisper as its initial prompt
+  // (whisper's bias window is ~224 tokens, hence the tighter cap).
+  if (input.summaryContext !== undefined) {
+    const r = freeText(input.summaryContext, 'Meeting context', 4000);
+    if (r.error) return { ok: false, error: r.error };
+    patch.summaryContext = r.value;
+  }
+  if (input.sttVocabulary !== undefined) {
+    const r = freeText(input.sttVocabulary, 'Transcription vocabulary', 500);
+    if (r.error) return { ok: false, error: r.error };
+    patch.sttVocabulary = r.value;
+  }
 
   // Voice channels auto-join is restricted to. Empty array = any channel.
   // Set from the dashboard (slash options can't express a multi-select).

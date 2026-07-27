@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS guild_config (
   stt_provider TEXT, stt_model TEXT,
   whisper_model TEXT, notes_channel_id TEXT,
   use_thread INTEGER, auto_join INTEGER, language TEXT, summary_language TEXT,
-  auto_join_channel_ids TEXT, keep_audio INTEGER
+  auto_join_channel_ids TEXT, keep_audio INTEGER,
+  summary_context TEXT, stt_vocabulary TEXT
 );
 CREATE TABLE IF NOT EXISTS guilds (
   guild_id TEXT PRIMARY KEY,
@@ -94,6 +95,13 @@ export function openDb(path) {
   }
   if (!cols.some((c) => c.name === 'keep_audio')) {
     sql.exec(`ALTER TABLE guild_config ADD COLUMN keep_audio INTEGER`);
+  }
+  // Migration: per-guild AI context — summarizer additions + whisper vocabulary.
+  if (!cols.some((c) => c.name === 'summary_context')) {
+    sql.exec(`ALTER TABLE guild_config ADD COLUMN summary_context TEXT`);
+  }
+  if (!cols.some((c) => c.name === 'stt_vocabulary')) {
+    sql.exec(`ALTER TABLE guild_config ADD COLUMN stt_vocabulary TEXT`);
   }
   // Migration: per-meeting audio retention flag (audio kept for download).
   const meetingCols = sql.prepare(`PRAGMA table_info(meetings)`).all();

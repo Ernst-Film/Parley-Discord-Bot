@@ -21,6 +21,8 @@ export async function transcribeFile(filePath, opts = {}, deps = {}) {
       form.append('file', new Blob([bytes]), basename(filePath));
       form.append('model', opts.model || 'small');
       form.append('language', opts.language || 'auto');
+      // Per-guild vocabulary hint (names/jargon) → whisper's initial_prompt.
+      if (opts.prompt) form.append('initial_prompt', opts.prompt);
       const res = await fetchImpl(`${baseUrl}/transcribe`, {
         method: 'POST', body: form, signal: AbortSignal.timeout(timeoutMs),
       });

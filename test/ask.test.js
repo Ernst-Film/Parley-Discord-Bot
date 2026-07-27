@@ -15,3 +15,9 @@ test('askMeeting builds a grounded prompt and dispatches via getSummarizer', asy
   const ans = await askMeeting({ cfg: { summarizerProvider: 'fake' }, env: {}, question: 'q', transcript: 't', meta: {} });
   assert.equal(typeof ans, 'string');
 });
+
+test('buildAskPrompt includes the custom context only when provided', () => {
+  const p = buildAskPrompt('q', 't', { customContext: 'Bosun is the render farm.' });
+  assert.match(p, /Server-provided context[\s\S]*Bosun is the render farm\./);
+  assert.doesNotMatch(buildAskPrompt('q', 't', {}), /Server-provided context/);
+});
