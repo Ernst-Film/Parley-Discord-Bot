@@ -70,6 +70,13 @@ export function validateSetup(input, env) {
   if (input.useThread !== undefined) patch.useThread = !!input.useThread;
   if (input.autoJoin !== undefined) patch.autoJoin = !!input.autoJoin;
   if (input.keepAudio !== undefined) patch.keepAudio = !!input.keepAudio;
+  if (input.autoJoinMinMembers !== undefined) {
+    const n = Number(input.autoJoinMinMembers);
+    if (!Number.isInteger(n) || n < 1 || n > 10) {
+      return { ok: false, error: 'autoJoinMinMembers must be a whole number from 1 to 10.' };
+    }
+    patch.autoJoinMinMembers = n;
+  }
 
   // Per-guild AI context (dashboard-only): prose appended to the summary/Q&A
   // prompts, and a short vocabulary list fed to whisper as its initial prompt

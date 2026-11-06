@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS guild_config (
   stt_provider TEXT, stt_model TEXT,
   whisper_model TEXT, notes_channel_id TEXT,
   use_thread INTEGER, auto_join INTEGER, language TEXT, summary_language TEXT,
-  auto_join_channel_ids TEXT, keep_audio INTEGER,
+  auto_join_channel_ids TEXT, keep_audio INTEGER, auto_join_min_members INTEGER,
   summary_context TEXT, stt_vocabulary TEXT
 );
 CREATE TABLE IF NOT EXISTS guilds (
@@ -95,6 +95,10 @@ export function openDb(path) {
   }
   if (!cols.some((c) => c.name === 'keep_audio')) {
     sql.exec(`ALTER TABLE guild_config ADD COLUMN keep_audio INTEGER`);
+  }
+  // Migration: minimum humans in voice before auto-join (NULL = default 2).
+  if (!cols.some((c) => c.name === 'auto_join_min_members')) {
+    sql.exec(`ALTER TABLE guild_config ADD COLUMN auto_join_min_members INTEGER`);
   }
   // Migration: per-guild AI context — summarizer additions + whisper vocabulary.
   if (!cols.some((c) => c.name === 'summary_context')) {
