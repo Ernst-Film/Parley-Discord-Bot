@@ -86,6 +86,10 @@ export function startBot({ db, audioRoot }) {
   });
   const joiningInProgress = new Set(); // "guildId:channelId" strings
   const finalizingLostConnections = new Set(); // "guildId:channelId" strings — guards against stopping a lost session twice
+  // Recording (or mid-join) in any channel of this guild — see isGuildActive.
+  function guildBusy(guildId) {
+    return manager.isGuildActive(guildId) || [...joiningInProgress].some((k) => k.startsWith(`${guildId}:`));
+  }
   function humanCount(channel) {
     return channel.members.filter((m) => !m.user.bot).size;
   }
@@ -250,18 +254,24 @@ export function startBot({ db, audioRoot }) {
 
   client.on('voiceStateUpdate', async (oldState, newState) => {
     const guild = newState.guild;
-    const channel = newState.channel || oldState.channel;
-    if (!channel || channel.type !== ChannelType.GuildVoice) return;
     const cfg = getGuildConfig(db, guild.id);
-    const connected = manager.isActive(guild.id, channel.id);
-    const count = humanCount(channel);
-    debugLog(`[vSU] guild=${guild.id} channel=${channel.id} user=${newState.id} old=${oldState.channelId} new=${newState.channelId} humans=${count} connected=${connected} autoJoin=${cfg.autoJoin} allowed=${cfg.autoJoinChannelIds.length ? cfg.autoJoinChannelIds.join(',') : 'any'}`);
-    if (shouldAutoJoin({ humanCount: count, autoJoin: cfg.autoJoin, connected, channelId: channel.id, allowedChannelIds: cfg.autoJoinChannelIds })) {
-      debugLog(`[vSU] auto-join triggered for ${channel.id}`);
-      await joinAndStart(channel).catch((e) => console.error('auto-join failed:', e.message));
-    } else if (shouldAutoLeave({ humanCount: count, connected })) {
-      debugLog(`[vSU] auto-leave triggered for ${channel.id}`);
-      await stopAndLeave(guild.id, channel.id).catch((e) => console.error('auto-leave failed:', e.message));
+    // A channel switch (A → B) changes the head-count of BOTH channels, so the
+    // channel that was left is evaluated too (otherwise the bot could keep
+    // recording an emptied channel A). Old channel first, so a leave there
+    // happens before a join elsewhere.
+    const channels = [oldState.channel, newState.channel]
+      .filter((ch, i, arr) => ch && ch.type === ChannelType.GuildVoice && arr.findIndex((c) => c?.id === ch.id) === i);
+    for (const channel of channels) {
+      const connected = manager.isActive(guild.id, channel.id);
+      const count = humanCount(channel);
+      debugLog(`[vSU] guild=${guild.id} channel=${channel.id} user=${newState.id} old=${oldState.channelId} new=${newState.channelId} humans=${count} min=${cfg.autoJoinMinMembers} connected=${connected} autoJoin=${cfg.autoJoin} allowed=${cfg.autoJoinChannelIds.length ? cfg.autoJoinChannelIds.join(',') : 'any'}`);
+      if (shouldAutoJoin({ humanCount: count, autoJoin: cfg.autoJoin, connected, channelId: channel.id, allowedChannelIds: cfg.autoJoinChannelIds, minMembers: cfg.autoJoinMinMembers, guildBusy: guildBusy(guild.id) })) {
+        debugLog(`[vSU] auto-join triggered for ${channel.id}`);
+        await joinAndStart(channel).catch((e) => console.error('auto-join failed:', e.message));
+      } else if (shouldAutoLeave({ humanCount: count, connected, minMembers: cfg.autoJoinMinMembers })) {
+        debugLog(`[vSU] auto-leave triggered for ${channel.id}`);
+        await stopAndLeave(guild.id, channel.id).catch((e) => console.error('auto-leave failed:', e.message));
+      }
     }
   });
 
@@ -368,6 +378,7 @@ export function startBot({ db, audioRoot }) {
           notesChannelId: interaction.options.getChannel('notes_channel')?.id,
           useThread: interaction.options.getBoolean('thread') ?? undefined,
           autoJoin: interaction.options.getBoolean('autojoin') ?? undefined,
+          autoJoinMinMembers: interaction.options.getInteger('autojoin_min') ?? undefined,
           keepAudio: interaction.options.getBoolean('keep_audio') ?? undefined,
           language: interaction.options.getString('language') ?? undefined,
           summary_language: interaction.options.getString('summary_language') ?? undefined,

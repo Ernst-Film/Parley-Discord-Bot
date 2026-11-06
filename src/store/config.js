@@ -8,6 +8,7 @@ export const DEFAULTS = {
   useThread: true,
   autoJoin: true,
   autoJoinChannelIds: [],
+  autoJoinMinMembers: 2,
   keepAudio: false,
   summaryContext: null,
   sttVocabulary: null,
@@ -25,6 +26,7 @@ const COLS = {
   useThread: 'use_thread',
   autoJoin: 'auto_join',
   autoJoinChannelIds: 'auto_join_channel_ids',
+  autoJoinMinMembers: 'auto_join_min_members',
   keepAudio: 'keep_audio',
   summaryContext: 'summary_context',
   sttVocabulary: 'stt_vocabulary',
@@ -53,6 +55,7 @@ function fromRow(row) {
     useThread: row.use_thread == null ? DEFAULTS.useThread : !!row.use_thread,
     autoJoin: row.auto_join == null ? DEFAULTS.autoJoin : !!row.auto_join,
     autoJoinChannelIds: parseIdList(row.auto_join_channel_ids),
+    autoJoinMinMembers: row.auto_join_min_members ?? DEFAULTS.autoJoinMinMembers,
     keepAudio: row.keep_audio == null ? DEFAULTS.keepAudio : !!row.keep_audio,
     summaryContext: row.summary_context ?? DEFAULTS.summaryContext,
     sttVocabulary: row.stt_vocabulary ?? DEFAULTS.sttVocabulary,
@@ -74,8 +77,8 @@ export function setGuildConfig(db, guildId, patch) {
   const merged = { ...current, ...safePatch, guildId };
   db.sql.prepare(
     `INSERT OR REPLACE INTO guild_config
-       (guild_id, summarizer_provider, summarizer_model, stt_provider, stt_model, whisper_model, notes_channel_id, use_thread, auto_join, auto_join_channel_ids, keep_audio, summary_context, stt_vocabulary, language, summary_language)
-     VALUES (@guildId, @summarizerProvider, @summarizerModel, @sttProvider, @sttModel, @whisperModel, @notesChannelId, @useThread, @autoJoin, @autoJoinChannelIds, @keepAudio, @summaryContext, @sttVocabulary, @language, @summaryLanguage)`
+       (guild_id, summarizer_provider, summarizer_model, stt_provider, stt_model, whisper_model, notes_channel_id, use_thread, auto_join, auto_join_channel_ids, auto_join_min_members, keep_audio, summary_context, stt_vocabulary, language, summary_language)
+     VALUES (@guildId, @summarizerProvider, @summarizerModel, @sttProvider, @sttModel, @whisperModel, @notesChannelId, @useThread, @autoJoin, @autoJoinChannelIds, @autoJoinMinMembers, @keepAudio, @summaryContext, @sttVocabulary, @language, @summaryLanguage)`
   ).run({
     guildId,
     summarizerProvider: merged.summarizerProvider,
@@ -87,6 +90,7 @@ export function setGuildConfig(db, guildId, patch) {
     useThread: merged.useThread ? 1 : 0,
     autoJoin: merged.autoJoin ? 1 : 0,
     autoJoinChannelIds: JSON.stringify(merged.autoJoinChannelIds || []),
+    autoJoinMinMembers: merged.autoJoinMinMembers,
     keepAudio: merged.keepAudio ? 1 : 0,
     summaryContext: merged.summaryContext,
     sttVocabulary: merged.sttVocabulary,

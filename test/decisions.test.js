@@ -41,3 +41,34 @@ test('shouldAutoLeave true when connected and <=1 human', () => {
   assert.equal(shouldAutoLeave({ humanCount: 2, connected: true }), false);
   assert.equal(shouldAutoLeave({ humanCount: 0, connected: false }), false);
 });
+
+test('shouldAutoJoin with minMembers=1 joins for a single person', () => {
+  assert.equal(shouldAutoJoin({ humanCount: 1, autoJoin: true, connected: false, minMembers: 1 }), true);
+  assert.equal(shouldAutoJoin({ humanCount: 0, autoJoin: true, connected: false, minMembers: 1 }), false);
+});
+
+test('shouldAutoJoin respects a higher minMembers', () => {
+  assert.equal(shouldAutoJoin({ humanCount: 2, autoJoin: true, connected: false, minMembers: 3 }), false);
+  assert.equal(shouldAutoJoin({ humanCount: 3, autoJoin: true, connected: false, minMembers: 3 }), true);
+});
+
+test('shouldAutoJoin falls back to 2 for an invalid minMembers', () => {
+  for (const minMembers of [null, 0, -1, 1.5, 'x']) {
+    assert.equal(shouldAutoJoin({ humanCount: 1, autoJoin: true, connected: false, minMembers }), false);
+    assert.equal(shouldAutoJoin({ humanCount: 2, autoJoin: true, connected: false, minMembers }), true);
+  }
+});
+
+test('shouldAutoJoin never joins while the guild is busy in another channel', () => {
+  assert.equal(shouldAutoJoin({ humanCount: 3, autoJoin: true, connected: false, minMembers: 1, guildBusy: true }), false);
+});
+
+test('shouldAutoLeave with minMembers=1 stays until the channel is empty', () => {
+  assert.equal(shouldAutoLeave({ humanCount: 1, connected: true, minMembers: 1 }), false);
+  assert.equal(shouldAutoLeave({ humanCount: 0, connected: true, minMembers: 1 }), true);
+});
+
+test('shouldAutoLeave caps the leave threshold at 2 for higher minMembers', () => {
+  assert.equal(shouldAutoLeave({ humanCount: 2, connected: true, minMembers: 4 }), false);
+  assert.equal(shouldAutoLeave({ humanCount: 1, connected: true, minMembers: 4 }), true);
+});

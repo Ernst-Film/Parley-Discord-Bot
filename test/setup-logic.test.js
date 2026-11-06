@@ -175,3 +175,11 @@ test('rejects openai STT when OPENAI_API_KEY missing', () => {
   assert.equal(r.ok, false);
   assert.match(r.error, /OPENAI_API_KEY/);
 });
+
+test('accepts autoJoinMinMembers 1..10 and rejects anything else', () => {
+  assert.equal(validateSetup({ autoJoinMinMembers: 1 }, env).patch.autoJoinMinMembers, 1);
+  assert.equal(validateSetup({ autoJoinMinMembers: 10 }, env).patch.autoJoinMinMembers, 10);
+  for (const v of [0, 11, 1.5, 'abc', null]) {
+    assert.equal(validateSetup({ autoJoinMinMembers: v }, env).ok, false, `value ${v}`);
+  }
+});
