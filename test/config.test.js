@@ -125,3 +125,12 @@ test('keepAudio defaults to false and round-trips both values', () => {
   setGuildConfig(db, 'g', { keepAudio: false });
   assert.equal(getGuildConfig(db, 'g').keepAudio, false);
 });
+
+test('autoJoinMinMembers defaults to 2 and round-trips', () => {
+  const db = openDb(':memory:');
+  assert.equal(getGuildConfig(db, 'g').autoJoinMinMembers, 2);
+  setGuildConfig(db, 'g', { autoJoinMinMembers: 1 });
+  assert.equal(getGuildConfig(db, 'g').autoJoinMinMembers, 1);
+  setGuildConfig(db, 'g', { useThread: false });
+  assert.equal(getGuildConfig(db, 'g').autoJoinMinMembers, 1);
+});

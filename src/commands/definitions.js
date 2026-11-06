@@ -35,7 +35,9 @@ export function buildCommands() {
         .addChoices(...WHISPER_MODELS.map((m) => ({ name: m, value: m }))))
       .addChannelOption((o) => o.setName('notes_channel').setDescription('Where to post notes').addChannelTypes(ChannelType.GuildText))
       .addBooleanOption((o) => o.setName('thread').setDescription('Post notes in a thread'))
-      .addBooleanOption((o) => o.setName('autojoin').setDescription('Auto-join when 2+ people are in voice'))
+      .addBooleanOption((o) => o.setName('autojoin').setDescription('Auto-join voice channels automatically'))
+      .addIntegerOption((o) => o.setName('autojoin_min').setDescription('People needed in voice before auto-join (1 = join even a single person)')
+        .setMinValue(1).setMaxValue(10))
       .addBooleanOption((o) => o.setName('keep_audio').setDescription('Keep meeting recordings for download from the dashboard'))
       .addStringOption((o) => o.setName('language').setDescription('Spoken language (pick German to fix DE/EN mixing)')
         .addChoices(...LANGUAGES.map((l) => ({ name: l.name, value: l.code })), { name: 'Auto-detect', value: 'auto' }))
@@ -75,8 +77,8 @@ export const COMMAND_CATALOG = [
   { name: 'search', category: 'Notes', admin: false, args: '<keyword>',
     summary: 'Full-text search across every past meeting transcript.' },
   { name: 'setup', category: 'Configuration', admin: true,
-    args: '[provider] [model] [stt_provider] [stt_model] [whisper_model] [notes_channel] [thread] [autojoin] [keep_audio] [language] [summary_language]',
+    args: '[provider] [model] [stt_provider] [stt_model] [whisper_model] [notes_channel] [thread] [autojoin] [autojoin_min] [keep_audio] [language] [summary_language]',
     summary: 'Configure the bot for this server (admin only).',
-    detail: 'Set the summarizer provider/model, the speech-to-text provider (local sidecar or OpenAI) and model, notes channel, threading, auto-join, recording retention, and languages. You can also do all of this from this dashboard under Settings — restricting auto-join to specific voice channels is dashboard-only.' },
+    detail: 'Set the summarizer provider/model, the speech-to-text provider (local sidecar or OpenAI) and model, notes channel, threading, auto-join (and how many people it waits for), recording retention, and languages. You can also do all of this from this dashboard under Settings — restricting auto-join to specific voice channels is dashboard-only.' },
 ];
 ;

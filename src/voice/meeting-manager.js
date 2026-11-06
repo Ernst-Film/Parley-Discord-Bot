@@ -11,6 +11,13 @@ export class MeetingManager {
 
   key(guildId, channelId) { return `${guildId}:${channelId}`; }
   isActive(guildId, channelId) { return this.active.has(this.key(guildId, channelId)); }
+  // Discord allows one voice connection per bot per guild (@discordjs/voice
+  // reuses/moves it on a second joinVoiceChannel), so auto-join must not start
+  // a second meeting in a guild that is already recording another channel.
+  isGuildActive(guildId) {
+    for (const s of this.active.values()) if (s.guildId === guildId) return true;
+    return false;
+  }
 
   start({ guildId, channelId, channelName, connection, guild, attendees }) {
     const k = this.key(guildId, channelId);

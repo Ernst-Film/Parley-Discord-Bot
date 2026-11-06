@@ -530,7 +530,17 @@ export default function Setup() {
 
         <Card title="Behavior">
           <Switch checked={c.autoJoin} onChange={(e) => save({ autoJoin: e.target.checked })}
-            label="Auto-join voice" desc="Join automatically when two or more people are in a voice channel." />
+            label="Auto-join voice" desc="Join automatically when enough people are in a voice channel." />
+          {c.autoJoin && (
+            <Field label="Start recording at" hint="With 1 person the bot also records solo sessions and stays until the channel is empty. With 2+ it leaves when only one person remains.">
+              <div className="relative">
+                <select className={sel} value={c.autoJoinMinMembers ?? 2} onChange={(e) => save({ autoJoinMinMembers: Number(e.target.value) })}>
+                  {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n === 1 ? '1 person (solo too)' : `${n} people`}</option>)}
+                </select>
+                <Chevron />
+              </div>
+            </Field>
+          )}
           {c.autoJoin && (
             <Field label="Auto-join channels" hint="Only auto-join the selected voice channels. Leave all unchecked to auto-join any channel.">
               {voiceChannels.length === 0 ? (

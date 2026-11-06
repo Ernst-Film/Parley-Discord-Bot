@@ -308,7 +308,7 @@ pm2 save
 | `/search <keyword>` | Full-text search across all meeting transcripts |
 | `/setup` | Configure the bot for this server (admin only) |
 
-**Auto join/leave:** the bot joins automatically when more than one human is in a voice channel and leaves when one or zero remain. Toggle with `/setup autojoin`. To limit auto-join to specific voice channels, pick them in the dashboard under **Settings → Behavior** (leave the list empty to allow any channel); `/join` always works regardless of the list.
+**Auto join/leave:** by default the bot joins automatically when two or more humans are in a voice channel and leaves when one or zero remain. Toggle with `/setup autojoin`; change the threshold with `/setup autojoin_min` (or **Settings → Behavior → Start recording at**). With `autojoin_min:1` it also records a single person (solo notes, voice memos) and only leaves once the channel is empty. The bot has one voice connection per server, so while it records one channel it won't auto-join another. To limit auto-join to specific voice channels, pick them in the dashboard under **Settings → Behavior** (leave the list empty to allow any channel); `/join` always works regardless of the list.
 
 ## 🎛️ Configuration
 
@@ -323,7 +323,8 @@ pm2 save
 | `whisper_model` | Local sidecar size: `tiny`, `base`, `small`, `medium`, `large-v3`, `large-v3-turbo` |
 | `notes_channel` | Text channel where notes are posted (defaults to the meeting's channel) |
 | `thread` | Post notes in a thread (default: on) |
-| `autojoin` | Auto-join when 2+ people are in voice |
+| `autojoin` | Auto-join voice channels (default: on) |
+| `autojoin_min` | People needed in voice before auto-join, 1–10 (default: 2; `1` = record solo sessions too) |
 | `keep_audio` | Keep meeting recordings for download from the dashboard (default: off) |
 | `language` | Spoken language (German, English, …) or `auto`-detect |
 | `summary_language` | Language for the notes/summary (default English), or `Match transcription` |

@@ -39,6 +39,14 @@ test('two channels record concurrently', () => {
   assert.equal(mgr.isActive('g', 'c2'), true);
 });
 
+test('isGuildActive is true for any recording channel in that guild only', () => {
+  const { mgr } = makeManager();
+  assert.equal(mgr.isGuildActive('g'), false);
+  mgr.start({ guildId: 'g', channelId: 'c1', channelName: 'x', connection: {}, guild: {}, attendees: [] });
+  assert.equal(mgr.isGuildActive('g'), true);
+  assert.equal(mgr.isGuildActive('other'), false);
+});
+
 test('listActive returns plain session data without voice handles', () => {
   const { mgr } = makeManager();
   const id = mgr.start({ guildId: 'g', channelId: 'c1', channelName: 'general', connection: { secret: true }, guild: {}, attendees: [] });
